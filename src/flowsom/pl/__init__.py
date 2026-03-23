@@ -1,3 +1,16 @@
+__all__ = [
+    "FlowSOMmary",
+    "plot_2D_scatters",
+    "plot_labels",
+    "plot_marker",
+    "plot_numbers",
+    "plot_pies",
+    "plot_stars",
+    "plot_variable",
+    "FlowSOM_colors",
+    "gg_color_hue",
+]
+
 from ._plot_helper_functions import (
     FlowSOM_colors,
     add_legend,

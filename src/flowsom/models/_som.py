@@ -18,28 +18,6 @@ def manh(p1, p2):
     return np.sum(np.abs(p1 - p2))
 
 
-@jit(nopython=True)
-def chebyshev(p1, p2, px, n, ncodes):
-    distance = 0.0
-    for j in range(px):
-        diff = abs(p1[j * n] - p2[j * ncodes])
-        if diff > distance:
-            distance = diff
-    return distance
-
-
-@jit(nopython=True)
-def cosine(p1, p2, px, n, ncodes):
-    nom = 0.0
-    denom1 = 0.0
-    denom2 = 0.0
-    for j in range(px):
-        nom += p1[j * n] * p2[j * ncodes]
-        denom1 += p1[j * n] * p1[j * n]
-        denom2 += p2[j * ncodes] * p2[j * ncodes]
-
-    return (-nom / (np.sqrt(denom1) * np.sqrt(denom2))) + 1
-
 
 @jit(nopython=True)
 def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=None):
