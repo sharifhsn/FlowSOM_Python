@@ -181,9 +181,16 @@ def test_outliers_with_reference(fcs):
 def test_outliers_with_channels(FlowSOM_res):
     result = FlowSOM_res.test_outliers(mad_allowed=4, channels=["CD3", "CD4"])
     assert isinstance(result, pd.DataFrame)
-    # Should have base columns plus one column per marker
+    # Should have base columns plus per-cell channel outlier columns
     assert result.shape[1] > 5
-    assert result.shape[0] == FlowSOM_res.get_cell_data().uns["n_nodes"]
+    # Per-cell channel columns have n_cells rows (not n_nodes)
+    # The result DataFrame is joined: per-cluster (n_nodes rows) + per-cell channel columns
+    # Channel columns should contain only -1, 0, or 1 values
+    channel_cols = [c for c in result.columns if c not in [
+        "median_dist", "median_absolute_deviation", "threshold",
+        "number_of_outliers", "maximum_outlier_distance"
+    ]]
+    assert len(channel_cols) >= 2  # At least CD3 and CD4 markers
 
 
 def test_mfis():

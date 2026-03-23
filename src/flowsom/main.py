@@ -358,41 +358,43 @@ class FlowSOM:
 
         if channels is not None:
             outliers_dict = {}
-            codes = fsom_reference.mudata["cluster_data"].obsm["codes"]
-            cols_used = fsom_reference.mudata["cell_data"].var["cols_used"]
-            cols_used_names = fsom_reference.mudata["cell_data"].var_names[cols_used]
-            data = fsom_reference.mudata["cell_data"].X
+            ref_data = fsom_reference.mudata["cell_data"].X
+            ref_cl = fsom_reference.mudata["cell_data"].obs["clustering"]
+            n_nodes = fsom_reference.mudata["cell_data"].uns["n_nodes"]
             channels = list(get_channels(fsom_reference, channels).keys())
             for channel in channels:
                 channel_i = np.where(fsom_reference.mudata["cell_data"].var_names == channel)[0][0]
-                codes_i = np.where(cols_used_names == channel)[0][0]
-                distances_median_channel = [
-                    np.median(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, codes_i])))
-                    if len(data[cell_cl == cl, channel_i]) > 0
+                # R-style: statistics on raw channel values per cluster
+                medians_ch = [
+                    np.median(ref_data[ref_cl == cl, channel_i])
+                    if len(ref_data[ref_cl == cl, channel_i]) > 0
                     else 0
-                    for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
+                    for cl in range(n_nodes)
                 ]
-                distances_mad_channel = [
-                    median_abs_deviation(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, codes_i])))
-                    if len(data[cell_cl == cl, channel_i]) > 0
+                mads_ch = [
+                    median_abs_deviation(ref_data[ref_cl == cl, channel_i])
+                    if len(ref_data[ref_cl == cl, channel_i]) > 0
                     else 0
-                    for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
+                    for cl in range(n_nodes)
                 ]
-                thresholds_channel = np.add(distances_median_channel, np.multiply(mad_allowed, distances_mad_channel))
+                # Two-sided thresholds on raw values
+                max_thresh = np.add(medians_ch, np.multiply(mad_allowed, mads_ch))
+                min_thresh = np.subtract(medians_ch, np.multiply(mad_allowed, mads_ch))
 
-                distances_channel = [
-                    np.abs(
-                        np.subtract(
-                            self.mudata["cell_data"].X[self.mudata["cell_data"].obs["clustering"] == cl, channel_i],
-                            codes[cl, codes_i],
-                        )
-                    )
-                    for cl in range(self.mudata["cell_data"].uns["n_nodes"])
-                ]
-                outliers_channel = [
-                    sum(distances_channel[i] > thresholds_channel[i]) for i in range(len(distances_channel))
-                ]
-                outliers_dict[list(get_markers(self, [channel]).keys())[0]] = outliers_channel
+                # Per-cell labels: +1 (above max), -1 (below min), 0 (normal)
+                new_cl = self.mudata["cell_data"].obs["clustering"]
+                new_data = self.mudata["cell_data"].X
+                cell_labels = np.zeros(new_data.shape[0])
+                for cl in range(n_nodes):
+                    mask = new_cl == cl
+                    if mask.sum() == 0:
+                        continue
+                    vals = new_data[mask, channel_i]
+                    labels = np.where(vals > max_thresh[cl], 1, np.where(vals < min_thresh[cl], -1, 0))
+                    cell_labels[mask] = labels
+
+                marker_name = list(get_markers(self, [channel]).keys())[0]
+                outliers_dict[marker_name] = cell_labels
             result_channels = pd.DataFrame(outliers_dict)
             result = result.join(result_channels)
         return result
