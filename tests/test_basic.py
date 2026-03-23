@@ -109,7 +109,7 @@ def test_flowsom_subset(FlowSOM_res):
 
 
 def test_get_features(FlowSOM_res, ff_path):
-    fs.tl.get_features(
+    result = fs.tl.get_features(
         FlowSOM_res,
         [str(ff_path), str(ff_path)],
         level=["clusters", "metaclusters"],
@@ -118,6 +118,12 @@ def test_get_features(FlowSOM_res, ff_path):
         positive_cutoffs={"CD3": 2, "PE-A": 2},
         filenames=None,
     )
+    assert isinstance(result, dict)
+    assert "cluster_counts" in result
+    assert "metacluster_counts" in result
+    assert "cluster_MFIs" in result
+    assert result["cluster_counts"].shape[0] == 2  # 2 files
+    assert result["metacluster_counts"].shape[0] == 2
 
 
 def test_FlowSOMmary(FlowSOM_res, tmp_path):
@@ -241,3 +247,64 @@ def test_mfis():
             index=pd.Index([0, 1], name="metaclustering"),
         ),
     )
+
+
+def test_get_channels(FlowSOM_res):
+    result = fs.tl.get_channels(FlowSOM_res, ["CD3", "CD4"])
+    assert isinstance(result, dict)
+    assert len(result) == 2
+
+
+def test_get_channels_by_index(FlowSOM_res):
+    result = fs.tl.get_channels(FlowSOM_res, [8, 11])
+    assert isinstance(result, dict)
+    assert len(result) == 2
+
+
+def test_get_channels_invalid(FlowSOM_res):
+    import pytest
+
+    with pytest.raises(KeyError, match="not found"):
+        fs.tl.get_channels(FlowSOM_res, ["NONEXISTENT_MARKER"])
+
+
+def test_get_markers(FlowSOM_res):
+    result = fs.tl.get_markers(FlowSOM_res, ["CD3", "CD4"])
+    assert isinstance(result, dict)
+    assert len(result) == 2
+
+
+def test_get_counts(FlowSOM_res):
+    result = fs.tl.get_counts(FlowSOM_res, level="metaclusters")
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == FlowSOM_res.get_cell_data().uns["n_metaclusters"]
+    assert (result["counts"] >= 0).all()
+
+    result_cl = fs.tl.get_counts(FlowSOM_res, level="clusters")
+    assert result_cl.shape[0] == FlowSOM_res.get_cell_data().uns["n_nodes"]
+
+
+def test_get_percentages(FlowSOM_res):
+    result = fs.tl.get_percentages(FlowSOM_res, level="metaclusters")
+    assert isinstance(result, pd.DataFrame)
+    assert abs(result["counts"].sum() - 1.0) < 1e-10
+
+
+def test_flowsom_validation():
+    import pytest
+
+    data = pd.DataFrame(np.random.rand(100, 4), columns=["A", "B", "C", "D"])
+    with pytest.raises(ValueError, match="xdim and ydim must be >= 1"):
+        fs.FlowSOM(data, cols_to_use=["A", "B"], n_clusters=2, xdim=0, ydim=10)
+
+
+def test_input_not_mutated():
+    import anndata as ad
+    from scipy.sparse import csr_matrix
+
+    X = csr_matrix(np.random.rand(200, 4))
+    adata = ad.AnnData(X)
+    original_type = type(adata.X)
+    fs.FlowSOM(adata, cols_to_use=[0, 1, 2, 3], n_clusters=2, xdim=2, ydim=2)
+    # Original should still be sparse (read_input copies now)
+    assert isinstance(adata.X, original_type)
