@@ -160,6 +160,8 @@ class BatchSOMEstimator(BaseClusterEstimator):
     def predict(self, X, y=None):
         """Predict labels using the model."""
         check_is_fitted(self)
+        if self.importance is not None:
+            X = X * np.asarray(self.importance)[np.newaxis, :]
         clusters, dists = map_data_to_codes(X, self.codes, metric=self.distf)
         self.labels_ = clusters.astype(int)
         self.distances = dists

@@ -136,7 +136,7 @@ class FlowSOM:
             elif inp.endswith(".fcs"):
                 adata = read_FCS(inp)
         elif isinstance(inp, ad.AnnData):
-            adata = inp
+            adata = inp.copy()
         else:
             adata = ad.AnnData(inp)
         self.mudata.mod["cell_data"] = adata

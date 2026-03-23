@@ -13,7 +13,7 @@ def eucl(p1, p2):
     return np.sqrt(distance)
 
 
-@jit(nopython=True, parallel=True)
+@jit(nopython=True)
 def manh(p1, p2):
     return np.sum(np.abs(p1 - p2))
 
@@ -28,7 +28,7 @@ def chebyshev(p1, p2, px, n, ncodes):
     return distance
 
 
-@jit(nopython=True, parallel=True)
+@jit(nopython=True)
 def cosine(p1, p2, px, n, ncodes):
     nom = 0.0
     denom1 = 0.0
@@ -41,7 +41,7 @@ def cosine(p1, p2, px, n, ncodes):
     return (-nom / (np.sqrt(denom1) * np.sqrt(denom2))) + 1
 
 
-@jit(nopython=True, parallel=True)
+@jit(nopython=True)
 def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=None):
     if seed is not None:
         np.random.seed(seed)
@@ -84,9 +84,8 @@ def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=Non
     return codes
 
 
-@jit(nopython=True, parallel=True)
+@jit(nopython=True)
 def map_data_to_codes(data, codes, distf=eucl):
-    counter = -1
     n_codes = codes.shape[0]
     nd = data.shape[0]
     nn_codes = np.zeros(nd)
@@ -99,7 +98,6 @@ def map_data_to_codes(data, codes, distf=eucl):
             if tmp < mindist:
                 mindist = tmp
                 minid = cd
-        counter += 1
-        nn_codes[counter] = minid
-        nn_dists[counter] = mindist
+        nn_codes[i] = minid
+        nn_dists[i] = mindist
     return nn_codes, nn_dists

@@ -132,6 +132,8 @@ class SOMEstimator(BaseClusterEstimator):
     def predict(self, X, y=None):
         """Predict labels using the model."""
         check_is_fitted(self)
+        if self.importance is not None:
+            X = X * np.asarray(self.importance)[np.newaxis, :]
         distf_func = _DISTF_MAP[self.distf]
         clusters, dists = map_data_to_codes(X, self.codes, distf=distf_func)
         self.labels_ = clusters.astype(int)
