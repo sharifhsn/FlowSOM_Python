@@ -171,12 +171,13 @@ def SOM_Batch(
 
 
 # ChatGPT generated alternative to map_data_to_codes
-def map_data_to_codes(data, codes):
+def map_data_to_codes(data, codes, metric="euclidean"):
     """Returns a tuple with the indices and distances of the nearest code for each data point.
 
     Args:
         data (np.ndarray): The data points.
         codes (np.ndarray): The codes that the data points are mapped to.
+        metric (str): The distance metric for BallTree (default: "euclidean").
 
     Returns
     -------
@@ -189,7 +190,7 @@ def map_data_to_codes(data, codes):
     (array([0, 1]), array([0., 0.]))
     """
     # Create a BallTree for the codes (this is an efficient data structure for nearest neighbor search)
-    tree = BallTree(codes, metric="euclidean")
+    tree = BallTree(codes, metric=metric)
 
     # Query the BallTree to find the nearest code for each data point (k=1 means we only want the nearest neighbor)
     dists, indices = tree.query(data, k=1)

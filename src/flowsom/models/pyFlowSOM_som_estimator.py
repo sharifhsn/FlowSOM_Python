@@ -16,7 +16,6 @@ class PyFlowSOM_SOMEstimator(BaseClusterEstimator):
         alpha=(0.05, 0.01),
         init=False,
         initf=None,
-        map=True,
         codes=None,
         importance=None,
         seed=None,
@@ -29,7 +28,6 @@ class PyFlowSOM_SOMEstimator(BaseClusterEstimator):
         self.alpha = alpha
         self.init = init
         self.initf = initf
-        self.map = map
         self.codes = codes
         self.importance = importance
         self.seed = seed

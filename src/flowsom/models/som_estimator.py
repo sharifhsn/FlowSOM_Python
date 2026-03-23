@@ -4,6 +4,12 @@ from scipy.spatial.distance import cdist, pdist, squareform
 from sklearn.utils.validation import check_is_fitted
 
 from . import SOM, BaseClusterEstimator, map_data_to_codes
+from ._som import eucl, manh
+
+_DISTF_MAP = {
+    "euclidean": eucl,
+    "manhattan": manh,
+}
 
 
 class SOMEstimator(BaseClusterEstimator):
@@ -18,7 +24,7 @@ class SOMEstimator(BaseClusterEstimator):
         alpha=(0.05, 0.01),
         init=False,
         initf=None,
-        map=True,
+        distf="euclidean",
         codes=None,
         importance=None,
         seed=None,
@@ -31,7 +37,7 @@ class SOMEstimator(BaseClusterEstimator):
         self.alpha = alpha
         self.init = init
         self.initf = initf
-        self.map = map
+        self.distf = distf
         self.codes = codes
         self.importance = importance
         self.seed = seed
@@ -63,13 +69,17 @@ class SOMEstimator(BaseClusterEstimator):
         mst = self.mst
         alpha = self.alpha
 
+        if self.distf not in _DISTF_MAP:
+            raise ValueError(f"Unknown distance function '{self.distf}'. Supported: {list(_DISTF_MAP.keys())}")
+        distf_func = _DISTF_MAP[self.distf]
+
         if codes is not None:
             assert (codes.shape[1] == X.shape[1]) and (codes.shape[0] == xdim * ydim), (
                 "If codes is not NULL, it should have the same number of columns as the data and the number of rows should correspond with xdim*ydim"
             )
 
         if importance is not None:
-            X = np.stack([X[:, i] * importance[i] for i in range(len(importance))], axis=1)
+            X = X * np.asarray(importance)[np.newaxis, :]
 
         # Initialize the grid
         grid = [(x, y) for x in range(xdim) for y in range(ydim)]
@@ -108,12 +118,13 @@ class SOMEstimator(BaseClusterEstimator):
                 radii=radius[i],
                 ncodes=n_codes,
                 rlen=self.rlen,
+                distf=distf_func,
                 seed=self.seed,
             )
             if mst != 1:
                 nhbrdist: list[list[int]] = _dist_mst(codes)
 
-        clusters, dists = map_data_to_codes(data=X, codes=codes)
+        clusters, dists = map_data_to_codes(data=X, codes=codes, distf=distf_func)
         self.codes, self.labels_, self.distances = codes.copy(), clusters, dists
         self._is_fitted = True
         return self
@@ -121,8 +132,8 @@ class SOMEstimator(BaseClusterEstimator):
     def predict(self, X, y=None):
         """Predict labels using the model."""
         check_is_fitted(self)
-        self.distances = cdist(X, self.codes, metric="euclidean")
-        clusters, dists = map_data_to_codes(X, self.codes)
+        distf_func = _DISTF_MAP[self.distf]
+        clusters, dists = map_data_to_codes(X, self.codes, distf=distf_func)
         self.labels_ = clusters.astype(int)
         self.distances = dists
         return self.labels_
