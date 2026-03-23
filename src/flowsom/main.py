@@ -309,23 +309,23 @@ class FlowSOM:
         cell_cl = np.asarray(fsom_reference.mudata["cell_data"].obs["clustering"]).astype(int)
         dist_to_bmu = np.asarray(fsom_reference.mudata["cell_data"].obs["distance_to_bmu"])
 
-        # Sort once by cluster label (1-indexed) so each cluster's distances
+        # Sort once by cluster label (0-indexed) so each cluster's distances
         # are contiguous, replacing N pandas boolean-index lookups.
         sort_idx = np.argsort(cell_cl, kind="stable")
         cl_sorted = cell_cl[sort_idx]
         dist_sorted = dist_to_bmu[sort_idx]
-        # Clusters are 1-indexed in test_outliers, so search for 0..n_nodes+1
-        boundaries = np.searchsorted(cl_sorted, np.arange(n_nodes + 2))
+        boundaries = np.searchsorted(cl_sorted, np.arange(n_nodes + 1))
 
         distances_median = np.zeros(n_nodes)
         distances_mad = np.zeros(n_nodes)
         for cl in range(n_nodes):
-            start, end = boundaries[cl + 1], boundaries[cl + 2]
+            start, end = boundaries[cl], boundaries[cl + 1]
             if start < end:
                 chunk = dist_sorted[start:end]
                 med = np.median(chunk)
                 distances_median[cl] = med
-                distances_mad[cl] = np.median(np.abs(chunk - med))
+                # scale=1.4826 matches R's mad(constant=1.4826) default
+                distances_mad[cl] = 1.4826 * np.median(np.abs(chunk - med))
 
         thresholds = distances_median + mad_allowed * distances_mad
 
@@ -335,12 +335,12 @@ class FlowSOM:
         self_sort = np.argsort(self_cl, kind="stable")
         self_cl_s = self_cl[self_sort]
         self_dist_s = self_dist[self_sort]
-        self_bounds = np.searchsorted(self_cl_s, np.arange(n_nodes + 2))
+        self_bounds = np.searchsorted(self_cl_s, np.arange(n_nodes + 1))
 
         max_distances_new = np.zeros(n_nodes)
         outliers = np.zeros(n_nodes, dtype=int)
         for cl in range(n_nodes):
-            start, end = self_bounds[cl + 1], self_bounds[cl + 2]
+            start, end = self_bounds[cl], self_bounds[cl + 1]
             if start < end:
                 chunk = self_dist_s[start:end]
                 max_distances_new[cl] = chunk.max()
@@ -358,20 +358,20 @@ class FlowSOM:
 
         if channels is not None:
             outliers_dict = {}
-            codes = fsom_reference.mudata["cluster_data"]().obsm["codes"]
+            codes = fsom_reference.mudata["cluster_data"].obsm["codes"]
             data = fsom_reference.mudata["cell_data"].X
             channels = list(get_channels(fsom_reference, channels).keys())
             for channel in channels:
                 channel_i = np.where(fsom_reference.mudata["cell_data"].var_names == channel)[0][0]
                 distances_median_channel = [
-                    np.median(np.abs(np.subtract(data[cell_cl == cl + 1, channel_i], codes[cl, channel_i])))
-                    if len(data[cell_cl == cl + 1, channel_i]) > 0
+                    np.median(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, channel_i])))
+                    if len(data[cell_cl == cl, channel_i]) > 0
                     else 0
                     for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
                 ]
                 distances_mad_channel = [
-                    median_abs_deviation(np.abs(np.subtract(data[cell_cl == cl + 1, channel_i], codes[cl, channel_i])))
-                    if len(data[cell_cl == cl + 1, channel_i]) > 0
+                    median_abs_deviation(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, channel_i])))
+                    if len(data[cell_cl == cl, channel_i]) > 0
                     else 0
                     for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
                 ]
@@ -380,8 +380,8 @@ class FlowSOM:
                 distances_channel = [
                     np.abs(
                         np.subtract(
-                            self.mudata["cell_data"].X[self.mudata["cell_data"].obs["clustering"] == cl + 1, channel_i],
-                            fsom_reference.mudata["cell_data"].uns["n_nodes"][cl, channel_i],
+                            self.mudata["cell_data"].X[self.mudata["cell_data"].obs["clustering"] == cl, channel_i],
+                            codes[cl, channel_i],
                         )
                     )
                     for cl in range(self.mudata["cell_data"].uns["n_nodes"])
