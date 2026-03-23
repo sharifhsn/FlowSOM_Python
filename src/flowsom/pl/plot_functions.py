@@ -554,6 +554,7 @@ def FlowSOMmary(fsom, plot_file="./FlowSOMmary.pdf"):
 
     # Plot
     pdf = matplotlib.backends.backend_pdf.PdfPages(plot_file)
-    for fig in plot_dict.keys():
-        pdf.savefig(plot_dict[fig])
+    for fig in plot_dict.values():
+        pdf.savefig(fig)
+        plt.close(fig)
     pdf.close()
