@@ -72,7 +72,11 @@ class BaseFlowSOMEstimator(BaseEstimator):
         return y
 
     def predict(self, X):
-        """Predict the clusters."""
+        """Predict cluster and metacluster labels for new data.
+
+        Note: Updates self.labels_ and self.cluster_labels_ as a side effect.
+        This is used internally by FlowSOM.new_data().
+        """
         check_is_fitted(self, "_is_fitted")
         y_clusters = self.cluster_model.predict(X)
         self.cluster_labels_ = y_clusters

@@ -68,3 +68,40 @@ def test_input_validation():
     X_empty = np.empty((0, 3))
     with pytest.raises(ValueError, match="no samples"):
         est.fit(X_empty)
+
+
+def test_batch_som_basic():
+    """Test BatchSOMEstimator produces valid clustering."""
+    from flowsom.models.batch.som_estimator import BatchSOMEstimator
+
+    X = np.random.RandomState(42).rand(200, 4)
+    est = BatchSOMEstimator(xdim=3, ydim=3, num_batches=5, seed=42)
+    labels = est.fit_predict(X)
+    assert labels.shape == (200,)
+    assert len(np.unique(labels)) <= 9
+    assert est.codes.shape == (9, 4)
+
+
+def test_batch_som_importance():
+    """Test BatchSOMEstimator importance scaling changes codes."""
+    from flowsom.models.batch.som_estimator import BatchSOMEstimator
+
+    X = np.random.RandomState(42).rand(200, 4)
+    est = BatchSOMEstimator(xdim=3, ydim=3, importance=[1, 2, 0.5, 1.5], seed=42)
+    est.fit(X)
+    est_plain = BatchSOMEstimator(xdim=3, ydim=3, seed=42)
+    est_plain.fit(X)
+    assert not np.array_equal(est.codes, est_plain.codes), (
+        "Importance scaling should produce different codes"
+    )
+
+
+def test_batch_som_predict_consistency():
+    """Test that fit_predict and fit+predict give consistent labels."""
+    from flowsom.models.batch.som_estimator import BatchSOMEstimator
+
+    X = np.random.RandomState(42).rand(200, 4)
+    est = BatchSOMEstimator(xdim=3, ydim=3, num_batches=3, seed=42)
+    labels_fp = est.fit_predict(X)
+    labels_p = est.predict(X)
+    np.testing.assert_array_equal(labels_fp, labels_p)

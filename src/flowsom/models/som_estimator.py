@@ -140,7 +140,11 @@ class SOMEstimator(BaseClusterEstimator):
         return self
 
     def predict(self, X, y=None):
-        """Predict labels using the model."""
+        """Predict cluster labels for new data.
+
+        Note: Updates self.labels_ and self.distances as a side effect.
+        This is used internally by FlowSOM.new_data().
+        """
         check_is_fitted(self)
         if self.importance is not None:
             X = X * np.asarray(self.importance)[np.newaxis, :]
