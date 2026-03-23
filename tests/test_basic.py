@@ -187,16 +187,17 @@ def test_outliers_with_reference(fcs):
 def test_outliers_with_channels(FlowSOM_res):
     result = FlowSOM_res.test_outliers(mad_allowed=4, channels=["CD3", "CD4"])
     assert isinstance(result, pd.DataFrame)
-    # Should have base columns plus per-cell channel outlier columns
     assert result.shape[1] > 5
-    # Per-cell channel columns have n_cells rows (not n_nodes)
-    # The result DataFrame is joined: per-cluster (n_nodes rows) + per-cell channel columns
-    # Channel columns should contain only -1, 0, or 1 values
-    channel_cols = [c for c in result.columns if c not in [
-        "median_dist", "median_absolute_deviation", "threshold",
-        "number_of_outliers", "maximum_outlier_distance"
-    ]]
-    assert len(channel_cols) >= 2  # At least CD3 and CD4 markers
+    base_cols = {"median_dist", "median_absolute_deviation", "threshold",
+                 "number_of_outliers", "maximum_outlier_distance"}
+    channel_cols = [c for c in result.columns if c not in base_cols]
+    assert len(channel_cols) >= 2
+    # Channel columns must contain only -1 (below), 0 (normal), or 1 (above)
+    for col in channel_cols:
+        vals = result[col].dropna().unique()
+        assert set(vals).issubset({-1, 0, 1}), (
+            f"Channel '{col}' has invalid values: {sorted(set(vals))}, expected subset of {{-1, 0, 1}}"
+        )
 
 
 def test_mfis():
@@ -264,8 +265,10 @@ def test_get_channels_by_index(FlowSOM_res):
 def test_get_channels_invalid(FlowSOM_res):
     import pytest
 
-    with pytest.raises(KeyError, match="not found"):
+    with pytest.raises(KeyError, match="NONEXISTENT_MARKER") as exc_info:
         fs.tl.get_channels(FlowSOM_res, ["NONEXISTENT_MARKER"])
+    # Error message should show original name, not regex-wrapped '^NONEXISTENT_MARKER$'
+    assert "^" not in str(exc_info.value), "Error message should not contain regex anchors"
 
 
 def test_get_markers(FlowSOM_res):
@@ -297,14 +300,29 @@ def test_flowsom_validation():
     with pytest.raises(ValueError, match="xdim and ydim must be >= 1"):
         fs.FlowSOM(data, cols_to_use=["A", "B"], n_clusters=2, xdim=0, ydim=10)
 
+    with pytest.raises(ValueError, match="n_clusters must be >= 1"):
+        fs.FlowSOM(data, cols_to_use=["A", "B"], n_clusters=0, xdim=2, ydim=2)
+
+    # Invalid level in get_counts
+    fsom = fs.FlowSOM(data, cols_to_use=["A", "B"], n_clusters=2, xdim=2, ydim=2)
+    with pytest.raises(ValueError, match="level must be"):
+        fs.tl.get_counts(fsom, level="invalid")
+
 
 def test_input_not_mutated():
     import anndata as ad
-    from scipy.sparse import csr_matrix
+    from scipy.sparse import csr_matrix, issparse
 
     X = csr_matrix(np.random.rand(200, 4))
     adata = ad.AnnData(X)
-    original_type = type(adata.X)
+    original_data = adata.X.copy()
+    original_var_keys = set(adata.var.keys())
     fs.FlowSOM(adata, cols_to_use=[0, 1, 2, 3], n_clusters=2, xdim=2, ydim=2)
-    # Original should still be sparse (read_input copies now)
-    assert isinstance(adata.X, original_type)
+    # Sparse type preserved
+    assert issparse(adata.X), "Original AnnData.X should still be sparse"
+    # Data values unchanged
+    assert (adata.X != original_data).nnz == 0, "Original AnnData.X values should be unchanged"
+    # No new var columns added to original
+    assert set(adata.var.keys()) == original_var_keys, (
+        f"Original AnnData.var should not gain new columns, got: {set(adata.var.keys()) - original_var_keys}"
+    )

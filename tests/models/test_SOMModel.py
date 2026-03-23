@@ -46,6 +46,13 @@ def test_importance_scaling_predict():
     labels_predict = est.predict(X)
     np.testing.assert_array_equal(labels_fit, labels_predict)
 
+    # Verify importance actually changes results vs no importance
+    est_plain = SOMEstimator(xdim=3, ydim=3, importance=None, seed=42)
+    est_plain.fit(X)
+    assert not np.array_equal(est.codes, est_plain.codes), (
+        "Importance scaling should produce different codes than no scaling"
+    )
+
 
 def test_input_validation():
     """Test that fit() raises ValueError for invalid inputs."""
