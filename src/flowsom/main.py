@@ -51,6 +51,11 @@ class FlowSOM:
         :param kwargs: Additional keyword arguments. See documentation of the cluster_model and metacluster_model for more information.
         :type kwargs: dict
         """
+        if n_clusters is not None and n_clusters < 1:
+            raise ValueError(f"n_clusters must be >= 1, got {n_clusters}")
+        if xdim < 1 or ydim < 1:
+            raise ValueError(f"xdim and ydim must be >= 1, got xdim={xdim}, ydim={ydim}")
+
         self.cols_to_use = cols_to_use
         self.mad_allowed = mad_allowed
         # cluster model params

@@ -80,10 +80,20 @@ class BatchSOMEstimator(BaseClusterEstimator):
             raise ValueError(f"Unknown distance function '{self.distf}'. Supported: {list(_DISTF_MAP_BATCH.keys())}")
         distf_func = _DISTF_MAP_BATCH[self.distf]
 
-        if codes is not None:
-            assert (codes.shape[1] == X.shape[1]) and (codes.shape[0] == xdim * ydim), (
-                "If codes is not NULL, it should have the same number of columns as the data and the number of rows should correspond with xdim*ydim"
+        n_codes_expected = xdim * ydim
+        if X.shape[0] == 0:
+            raise ValueError("Input data X has no samples")
+        if X.shape[0] < n_codes_expected:
+            raise ValueError(
+                f"Number of samples ({X.shape[0]}) must be >= number of codes "
+                f"({n_codes_expected} = {xdim}x{ydim})"
             )
+
+        if codes is not None:
+            if codes.shape[1] != X.shape[1] or codes.shape[0] != xdim * ydim:
+                raise ValueError(
+                    f"codes must have shape ({xdim * ydim}, {X.shape[1]}), got {codes.shape}"
+                )
 
         if importance is not None:
             X = X * np.asarray(importance)[np.newaxis, :]

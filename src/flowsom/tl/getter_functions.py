@@ -16,9 +16,8 @@ def get_channels(obj, markers: np.ndarray, exact=True):
     :param exact: If True, a strict search is performed. If False, regexps can be used.
     :type exact: boolean
     """
-    assert obj.__class__.__name__ == "FlowSOM" or isinstance(obj, ad.AnnData), (
-        "Please provide an FCS file or a FlowSOM object"
-    )
+    if not (obj.__class__.__name__ == "FlowSOM" or isinstance(obj, ad.AnnData)):
+        raise TypeError("Please provide an FCS AnnData object or a FlowSOM object")
     if obj.__class__.__name__ == "FlowSOM":
         object_markers = np.asarray(
             [re.sub(" <.*", "", pretty_colname) for pretty_colname in obj.mudata["cell_data"].var["pretty_colnames"]]
@@ -50,7 +49,10 @@ def get_channels(obj, markers: np.ndarray, exact=True):
                 for i in i_channel:
                     channelnames[object_channels[i]] = object_channels[i]
             else:
-                raise Exception(f"Marker {marker} could not be found!")
+                raise KeyError(
+                    f"Marker '{marker}' not found. Available markers: {list(object_markers)}, "
+                    f"channels: {list(object_channels)}"
+                )
     return channelnames
 
 
@@ -64,9 +66,8 @@ def get_markers(obj, channels, exact=True):
     :param exact: If True, a strict search is performed. If False, regexps can be used.
     :type exact: boolean
     """
-    assert obj.__class__.__name__ == "FlowSOM" or isinstance(obj, ad.AnnData), (
-        "Please provide an FCS file or a FlowSOM object"
-    )
+    if not (obj.__class__.__name__ == "FlowSOM" or isinstance(obj, ad.AnnData)):
+        raise TypeError("Please provide an FCS AnnData object or a FlowSOM object")
     if obj.__class__.__name__ == "FlowSOM":
         object_markers = np.asarray(
             [re.sub(" <.*", "", pretty_colname) for pretty_colname in obj.mudata["cell_data"].var["pretty_colnames"]]
@@ -101,7 +102,10 @@ def get_markers(obj, channels, exact=True):
                 for i in i_marker:
                     markernames[object_markers[i]] = object_markers[i]
             else:
-                raise Exception(f"Channel {channel} could not be found!")
+                raise KeyError(
+                    f"Channel '{channel}' not found. Available channels: {list(object_channels)}, "
+                    f"markers: {list(object_markers)}"
+                )
     return markernames
 
 
@@ -113,7 +117,8 @@ def get_counts(fsom, level="metaclusters"):
     :param level: The level to get counts for. Should be 'metaclusters' or 'clusters'
     :type level: str
     """
-    assert level in ["metaclusters", "clusters"], "Level should be 'metaclusters' or 'clusters'"
+    if level not in ["metaclusters", "clusters"]:
+        raise ValueError(f"level must be 'metaclusters' or 'clusters', got '{level}'")
     if level == "metaclusters":
         counts = {
             "C" + str(i): (fsom.get_cell_data().obs["metaclustering"] == i).sum()
@@ -135,7 +140,8 @@ def get_percentages(fsom, level="metaclusters"):
     :param level: The level to get counts for. Should be 'metaclusters' or 'clusters'
     :type level: str
     """
-    assert level in ["metaclusters", "clusters"], "Level should be 'metaclusters' or 'clusters'"
+    if level not in ["metaclusters", "clusters"]:
+        raise ValueError(f"level must be 'metaclusters' or 'clusters', got '{level}'")
     counts = get_counts(fsom, level=level)
     percentages = counts / counts.sum()
     return percentages
@@ -252,18 +258,21 @@ def get_features(
     n_mcl = fsom.get_cell_data().uns["n_metaclusters"]
     nfiles = len(files)
     i = 0
-    if filenames is not None:
-        assert len(filenames) == nfiles, "The number of file names should be equal to the number of files"
-    assert all(i in ["metaclusters", "clusters"] for i in level), "Level should be 'metaclusters' or 'clusters'"
-    assert all(i in ["counts", "percentages", "MFIs", "percentages_positive"] for i in type), (
-        "Type should be 'counts', 'percentages','MFI' or 'percentages_positive'"
-    )
+    if filenames is not None and len(filenames) != nfiles:
+        raise ValueError(f"Number of filenames ({len(filenames)}) must equal number of files ({nfiles})")
+    if not all(i in ["metaclusters", "clusters"] for i in level):
+        raise ValueError("level entries must be 'metaclusters' or 'clusters'")
+    if not all(i in ["counts", "percentages", "MFIs", "percentages_positive"] for i in type):
+        raise ValueError("type entries must be 'counts', 'percentages', 'MFIs', or 'percentages_positive'")
     if "MFIs" in type:
-        assert MFI is not None, "If type is 'MFIs', MFI should be provided"
+        if MFI is None:
+            raise ValueError("MFI parameter is required when type includes 'MFIs'")
         MFI = list(get_channels(fsom, MFI).keys())
     if "percentages_positive" in type:
-        assert positive_cutoffs is not None, "If type is 'percentages_positive', positive_cutoffs should be provided"
-        assert isinstance(positive_cutoffs, dict), "positive_cutoffs should be a dictionary"
+        if positive_cutoffs is None:
+            raise ValueError("positive_cutoffs parameter is required when type includes 'percentages_positive'")
+        if not isinstance(positive_cutoffs, dict):
+            raise TypeError(f"positive_cutoffs must be a dict, got {type(positive_cutoffs).__name__}")
 
     matrices = {}
 
