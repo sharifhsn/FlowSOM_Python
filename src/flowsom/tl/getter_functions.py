@@ -340,7 +340,7 @@ def get_features(
                 .loc[get_channels(fsom, list(positive_cutoffs.keys())).keys()]
             )
             perc_pos_names = [i + " " + j for i in cluster_names for j in pretty_colnames]
-            matrices["cluster_percantages_pos"] = pd.DataFrame(C_perc_pos, columns=perc_pos_names)
+            matrices["cluster_percentages_pos"] = pd.DataFrame(C_perc_pos, columns=perc_pos_names)
     if "metaclusters" in level:
         MC_counts = (
             pd.concat(
@@ -367,6 +367,6 @@ def get_features(
                 .loc[get_channels(fsom, list(positive_cutoffs.keys())).keys()]
             )
             perc_pos_names = [i + " " + j for i in MC_names for j in pretty_colnames]
-            matrices["metacluster_percantages_pos"] = pd.DataFrame(MC_perc_pos, columns=perc_pos_names)
+            matrices["metacluster_percentages_pos"] = pd.DataFrame(MC_perc_pos, columns=perc_pos_names)
 
     return matrices
