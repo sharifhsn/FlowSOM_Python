@@ -156,6 +156,36 @@ def test_FlowSOM_class(FlowSOM_res):
     )
 
 
+def test_outliers(FlowSOM_res):
+    result = FlowSOM_res.test_outliers(mad_allowed=4)
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == FlowSOM_res.get_cell_data().uns["n_nodes"]
+    expected_cols = ["median_dist", "median_absolute_deviation", "threshold", "number_of_outliers", "maximum_outlier_distance"]
+    assert list(result.columns) == expected_cols
+    # Thresholds should be non-negative
+    assert (result["threshold"] >= 0).all()
+    # Median distances should be non-negative
+    assert (result["median_dist"] >= 0).all()
+    # Outlier counts should be non-negative integers
+    assert (result["number_of_outliers"] >= 0).all()
+
+
+def test_outliers_with_reference(fcs):
+    fsom = fs.FlowSOM(fcs[0:5000, :], cols_to_use=[8, 11, 13, 14, 15, 16, 17], n_clusters=10, seed=42)
+    fsom_new = fsom.new_data(fcs[5000:10000])
+    result = fsom_new.test_outliers(mad_allowed=4, fsom_reference=fsom)
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == fsom.get_cell_data().uns["n_nodes"]
+
+
+def test_outliers_with_channels(FlowSOM_res):
+    result = FlowSOM_res.test_outliers(mad_allowed=4, channels=["CD3", "CD4"])
+    assert isinstance(result, pd.DataFrame)
+    # Should have base columns plus one column per marker
+    assert result.shape[1] > 5
+    assert result.shape[0] == FlowSOM_res.get_cell_data().uns["n_nodes"]
+
+
 def test_mfis():
     # create a DataFrame with 4 cells and 4 markers with values in non-ascending order
     markers = ["CD3", "CD4", "CD8", "CD19"]

@@ -359,18 +359,21 @@ class FlowSOM:
         if channels is not None:
             outliers_dict = {}
             codes = fsom_reference.mudata["cluster_data"].obsm["codes"]
+            cols_used = fsom_reference.mudata["cell_data"].var["cols_used"]
+            cols_used_names = fsom_reference.mudata["cell_data"].var_names[cols_used]
             data = fsom_reference.mudata["cell_data"].X
             channels = list(get_channels(fsom_reference, channels).keys())
             for channel in channels:
                 channel_i = np.where(fsom_reference.mudata["cell_data"].var_names == channel)[0][0]
+                codes_i = np.where(cols_used_names == channel)[0][0]
                 distances_median_channel = [
-                    np.median(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, channel_i])))
+                    np.median(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, codes_i])))
                     if len(data[cell_cl == cl, channel_i]) > 0
                     else 0
                     for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
                 ]
                 distances_mad_channel = [
-                    median_abs_deviation(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, channel_i])))
+                    median_abs_deviation(np.abs(np.subtract(data[cell_cl == cl, channel_i], codes[cl, codes_i])))
                     if len(data[cell_cl == cl, channel_i]) > 0
                     else 0
                     for cl in range(fsom_reference.mudata["cell_data"].uns["n_nodes"])
@@ -381,7 +384,7 @@ class FlowSOM:
                     np.abs(
                         np.subtract(
                             self.mudata["cell_data"].X[self.mudata["cell_data"].obs["clustering"] == cl, channel_i],
-                            codes[cl, channel_i],
+                            codes[cl, codes_i],
                         )
                     )
                     for cl in range(self.mudata["cell_data"].uns["n_nodes"])
