@@ -31,10 +31,16 @@ def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=Non
     thresholdStep = (radii[0] - radii[1]) / niter
     change = 1.0
 
+    # Match R's som.c: when convergence detected (change < 1), R sets
+    # k = niter but the loop body still executes once more before k++
+    # causes the loop exit. So R processes one extra data point.
+    exit_after_this = False
     for k in range(niter):
+        if exit_after_this:
+            break
         if k % n == 0:
             if change < 1:
-                break
+                exit_after_this = True
             change = 0.0
 
         i = np.random.randint(n)

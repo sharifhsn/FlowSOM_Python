@@ -220,7 +220,8 @@ class FlowSOM:
             means = np.nanmean(chunk, axis=0)
             means[means == 0] = np.nan
             cv_values[cl] = sd_values[cl] / means
-            mad_values[cl] = np.nanmedian(np.abs(chunk - med), axis=0)
+            # 1.4826 matches R's mad(constant=1.4826) default for normal consistency
+            mad_values[cl] = 1.4826 * np.nanmedian(np.abs(chunk - med), axis=0)
 
         cluster_mudata = ad.AnnData(median_values)
         cluster_mudata.var_names = self.mudata["cell_data"].var_names
@@ -377,7 +378,7 @@ class FlowSOM:
                     for cl in range(n_nodes)
                 ]
                 mads_ch = [
-                    median_abs_deviation(ref_data[ref_cl == cl, channel_i])
+                    median_abs_deviation(ref_data[ref_cl == cl, channel_i], scale="normal")
                     if len(ref_data[ref_cl == cl, channel_i]) > 0
                     else 0
                     for cl in range(n_nodes)
