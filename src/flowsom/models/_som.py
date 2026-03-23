@@ -31,9 +31,9 @@ def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=Non
     thresholdStep = (radii[0] - radii[1]) / niter
     change = 1.0
 
-    # Match R's som.c: when convergence detected (change < 1), R sets
-    # k = niter but the loop body still executes once more before k++
-    # causes the loop exit. So R processes one extra data point.
+    # Match R's som.c convergence: when change < 1, R sets k = niter.
+    # The loop body executes once more (with k=niter for alpha computation),
+    # then k++ causes the loop condition to fail, exiting.
     exit_after_this = False
     for k in range(niter):
         if exit_after_this:
@@ -53,7 +53,9 @@ def SOM(data, codes, nhbrdist, alphas, radii, ncodes, rlen, distf=eucl, seed=Non
 
         if threshold < 1.0:
             threshold = 0.5
-        alpha = alphas[0] - (alphas[0] - alphas[1]) * k / niter
+        # When converging, R uses k=niter for alpha (always yields alphas[1])
+        effective_k = niter if exit_after_this else k
+        alpha = alphas[0] - (alphas[0] - alphas[1]) * effective_k / niter
 
         for cd in range(ncodes):
             if nhbrdist[cd, nearest] > threshold:

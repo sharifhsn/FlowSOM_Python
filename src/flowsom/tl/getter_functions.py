@@ -34,6 +34,7 @@ def get_channels(obj, markers: np.ndarray, exact=True):
 
     channelnames = {}
     for marker in markers:
+        original_marker = marker
         if isinstance(marker, int):
             i_channel = [marker]
         else:
@@ -50,7 +51,7 @@ def get_channels(obj, markers: np.ndarray, exact=True):
                     channelnames[object_channels[i]] = object_channels[i]
             else:
                 raise KeyError(
-                    f"Marker '{marker}' not found. Available markers: {list(object_markers)}, "
+                    f"Marker '{original_marker}' not found. Available markers: {list(object_markers)}, "
                     f"channels: {list(object_channels)}"
                 )
     return channelnames
@@ -84,6 +85,7 @@ def get_markers(obj, channels, exact=True):
 
     markernames = {}
     for channel in channels:
+        original_channel = channel
         if isinstance(channel, int):
             i_marker = [channel]
         else:
@@ -103,7 +105,7 @@ def get_markers(obj, channels, exact=True):
                     markernames[object_markers[i]] = object_markers[i]
             else:
                 raise KeyError(
-                    f"Channel '{channel}' not found. Available channels: {list(object_channels)}, "
+                    f"Channel '{original_channel}' not found. Available channels: {list(object_channels)}, "
                     f"markers: {list(object_markers)}"
                 )
     return markernames
