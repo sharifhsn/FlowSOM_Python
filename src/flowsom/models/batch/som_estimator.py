@@ -1,10 +1,7 @@
-import igraph as ig
 import numpy as np
-from scipy.spatial.distance import cdist, pdist, squareform
-from sklearn.utils.validation import check_is_fitted
 
+from flowsom.models._base_som_estimator import _BaseSOMEstimator
 from flowsom.models._som import manh
-from flowsom.models.base_cluster_estimator import BaseClusterEstimator
 
 from . import SOM_Batch, map_data_to_codes
 from ._som import eucl_without_sqrt
@@ -15,9 +12,8 @@ _DISTF_MAP_BATCH = {
 }
 
 
-# TODO: try to use the same code for both SOMEstimator and BatchSOMEstimator
-class BatchSOMEstimator(BaseClusterEstimator):
-    """Estimate a Self-Organizing Map (SOM) clustering model."""
+class BatchSOMEstimator(_BaseSOMEstimator):
+    """Estimate a Self-Organizing Map (SOM) clustering model using batch training."""
 
     def __init__(
         self,
@@ -34,171 +30,34 @@ class BatchSOMEstimator(BaseClusterEstimator):
         num_batches=10,
         seed=None,
     ):
-        super().__init__()
-        self.xdim = xdim
-        self.ydim = ydim
-        self.rlen = rlen
-        self.mst = mst
-        self.alpha = alpha
-        self.init = init
-        self.initf = initf
-        self.distf = distf
-        self.codes = codes
-        self.importance = importance
+        super().__init__(
+            xdim=xdim, ydim=ydim, rlen=rlen, mst=mst, alpha=alpha,
+            init=init, initf=initf, distf=distf, codes=codes,
+            importance=importance, seed=seed,
+        )
         self.num_batches = num_batches
-        self.seed = seed
 
-    # Core of the algorithm, where the SOM is executed
-    def fit(
-        self,
-        X,
-        y=None,
-    ):
-        """Perform SOM clustering.
+    def _get_distf_map(self):
+        return _DISTF_MAP_BATCH
 
-        :param inp:  An array of the columns to use for clustering
-        :type inp: np.array
-        :param xdim: x dimension of SOM
-        :type xdim: int
-        :param ydim: y dimension of SOM
-        :type ydim: int
-        :param rlen: Number of times to loop over the training data for each MST (Minimum Spanning Tree)
-        :type rlen: int
-        :param importance: Array with numeric values. Parameters will be scaled
-        according to importance
-        :type importance: np.array
-        """
-        codes = self.codes
-        xdim = self.xdim
-        ydim = self.ydim
-        importance = self.importance
-        init = self.init
-        mst = self.mst
-        alpha = self.alpha
-
-        if self.distf not in _DISTF_MAP_BATCH:
-            raise ValueError(f"Unknown distance function '{self.distf}'. Supported: {list(_DISTF_MAP_BATCH.keys())}")
-        distf_func = _DISTF_MAP_BATCH[self.distf]
-
-        n_codes_expected = xdim * ydim
-        if X.shape[0] == 0:
-            raise ValueError("Input data X has no samples")
-        if X.shape[0] < n_codes_expected:
-            raise ValueError(
-                f"Number of samples ({X.shape[0]}) must be >= number of codes "
-                f"({n_codes_expected} = {xdim}x{ydim})"
-            )
-
-        if codes is not None:
-            if codes.shape[1] != X.shape[1] or codes.shape[0] != xdim * ydim:
-                raise ValueError(
-                    f"codes must have shape ({xdim * ydim}, {X.shape[1]}), got {codes.shape}"
-                )
-
-        if importance is not None:
-            X = X * np.asarray(importance)[np.newaxis, :]
-
-        # Initialize the grid
-        grid = [(x, y) for x in range(xdim) for y in range(ydim)]
-        n_codes = len(grid)
-
-        if self.seed is not None:
-            np.random.seed(self.seed)
-
-        if codes is None:
-            if init:
-                codes = self.initf(X, xdim, ydim)
-            else:
-                # If no codes are provided, choose n_codes different random rows from the data
-                codes = X[np.random.choice(X.shape[0], n_codes, replace=False), :]
-
-        # Initialize the neighbourhood
-        # First the distances are computed (using the chebyshev distance this means the distance between (1, 1) and
-        # (1, 2) is one because the highest difference between two coördinates is 1. Using the squareform these are
-        # converted to a square matrix. This is a symmetric matrix, where the diagonal is 0.
-        nhbrdist = squareform(pdist(grid, metric="chebyshev"))
-
-        # Initialize the radius
-        radius = (np.quantile(nhbrdist, 0.67), 0)
-
-        # MST defines the amount of times the data is looped over. If mst is 1, only one radius and alpha is used.
-        # If mst is higher, the radius and alpha are linearly spaced between the given values
-        if mst == 1:
-            radius = [radius]
-            alpha = [alpha]
-        else:
-            radius = np.linspace(radius[0], radius[1], num=mst + 1)
-            radius = [tuple(radius[i : i + 2]) for i in range(mst)]
-            alpha = np.linspace(alpha[0], alpha[1], num=mst + 1)
-            alpha = [tuple(alpha[i : i + 2]) for i in range(mst)]
-
-        # Define the number of batches
+    def _train_som(self, X, codes, nhbrdist, alpha, radius, n_codes, distf_func):
         num_batches = self.num_batches
 
-        # Split the data for the different batches, where batch with number 0 contains datapoint 0, batch_size, 2*batch_size, ...
-        data = []
-        for i in range(num_batches):
-            data.append(X[i::num_batches, :])
+        # Split data into interleaved batches
+        data = [X[i::num_batches, :] for i in range(num_batches)]
 
-        # Make sure all the batches have the same amount of data, if not add the last data point to the last batch
+        # Equalize batch sizes by duplicating last row
         for i in range(num_batches):
             if data[i].shape[0] < data[0].shape[0]:
                 data[i] = np.vstack([data[i], X[-1, :]])
 
-        # Compute the SOM: mst defines the amount of times the data is looped over
-        for i in range(mst):
-            codes = SOM_Batch(
-                np.array(data, dtype=np.float32),
-                codes,
-                nhbrdist,
-                alphas=alpha[i],
-                radii=radius[i],
-                ncodes=n_codes,
-                rlen=self.rlen,
-                num_batches=num_batches,
-                distf=distf_func,
-                seed=self.seed,
-            )
-            if mst != 1:
-                nhbrdist: list[list[int]] = _dist_mst(codes)
+        return SOM_Batch(
+            np.array(data, dtype=np.float32),
+            codes, nhbrdist,
+            alphas=alpha, radii=radius, ncodes=n_codes,
+            rlen=self.rlen, num_batches=num_batches,
+            distf=distf_func, seed=self.seed,
+        )
 
-        clusters, dists = map_data_to_codes(data=X, codes=codes, metric=self.distf)
-        self.codes, self.labels_, self.distances = codes.copy(), clusters, dists
-        self._is_fitted = True
-        return self
-
-    def predict(self, X, y=None):
-        """Predict cluster labels for new data.
-
-        Note: Updates self.labels_ and self.distances as a side effect.
-        This is used internally by FlowSOM.new_data().
-        """
-        check_is_fitted(self)
-        if self.importance is not None:
-            X = X * np.asarray(self.importance)[np.newaxis, :]
-        clusters, dists = map_data_to_codes(X, self.codes, metric=self.distf)
-        self.labels_ = clusters.astype(int)
-        self.distances = dists
-        return self.labels_
-
-    # Called by the BASE FlowSOM Estimator
-    def fit_predict(self, X, y=None):
-        """Fit the model and predict labels."""
-        self.fit(X)
-        # Makes no sense here to call predict again, since the labels are already computed in the fit method
-        return self.labels_
-
-
-def _dist_mst(codes) -> list[list[int]]:
-    adjacency = cdist(
-        codes,
-        codes,
-        metric="euclidean",
-    )
-    full_graph = ig.Graph.Weighted_Adjacency(adjacency, mode="undirected", loops=False)
-    MST_graph = ig.Graph.spanning_tree(full_graph, weights=full_graph.es["weight"])
-    codes = [
-        [len(x) - 1 for x in MST_graph.get_shortest_paths(v=i, to=MST_graph.vs.indices, weights=None)]
-        for i in MST_graph.vs.indices
-    ]
-    return codes
+    def _map_data_to_codes(self, X, codes, distf_func):
+        return map_data_to_codes(data=X, codes=codes, metric=self.distf)
