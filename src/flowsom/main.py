@@ -32,7 +32,7 @@ class FlowSOM:
         mst: int = 1,
         alpha: tuple[float, float] = (0.05, 0.01),
         seed: int | None = None,
-        mad_allowed=4,
+        mad_allowed: int = 4,
         **kwargs,
     ):
         """Initialize the FlowSOM AnnData object.
@@ -297,7 +297,7 @@ class FlowSOM:
         self.model.metacluster_model.fit_predict(self.model.codes)
         return self
 
-    def test_outliers(self, mad_allowed: int = 4, fsom_reference=None, plot_file=None, channels=None):
+    def test_outliers(self, mad_allowed: int = 4, fsom_reference: FlowSOM | None = None, plot_file=None, channels: list | None = None) -> pd.DataFrame:
         """Test if any cells are too far from their cluster centers.
 
         :param mad_allowed: Number of median absolute deviations allowed. Default = 4.
@@ -405,7 +405,7 @@ class FlowSOM:
             result = result.join(result_channels)
         return result
 
-    def new_data(self, inp, mad_allowed=4):
+    def new_data(self, inp, mad_allowed: int = 4) -> FlowSOM:
         """Map new data to a FlowSOM grid.
 
         :param inp: An anndata or filepath to an FCS file
@@ -437,11 +437,11 @@ class FlowSOM:
         fsom_subset._update_derived_values()
         return fsom_subset
 
-    def get_cell_data(self):
+    def get_cell_data(self) -> ad.AnnData:
         """Get the cell data."""
         return self.mudata["cell_data"]
 
-    def get_cluster_data(self):
+    def get_cluster_data(self) -> ad.AnnData:
         """Get the cluster data."""
         return self.mudata["cluster_data"]
 

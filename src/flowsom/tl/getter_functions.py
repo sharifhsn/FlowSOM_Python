@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 
-def get_channels(obj, markers: np.ndarray, exact=True):
+def get_channels(obj, markers: np.ndarray | list, exact: bool = True) -> dict:
     """Gets the channels of the provided markers based on a FlowSOM object or an FCS file.
 
     :param obj: A FlowSOM object or a FCS AnnData object
@@ -57,7 +57,7 @@ def get_channels(obj, markers: np.ndarray, exact=True):
     return channelnames
 
 
-def get_markers(obj, channels, exact=True):
+def get_markers(obj, channels: np.ndarray | list, exact: bool = True) -> dict:
     """Gets the markers of the provided channels based on a FlowSOM object or an FCS file.
 
     :param obj: A FlowSOM object or a FCS AnnData object
@@ -111,7 +111,7 @@ def get_markers(obj, channels, exact=True):
     return markernames
 
 
-def get_counts(fsom, level="metaclusters"):
+def get_counts(fsom, level: str = "metaclusters") -> pd.DataFrame:
     """Get counts of number of cells in clusters or metaclusters.
 
     :param fsom: A FlowSOM object
@@ -134,7 +134,7 @@ def get_counts(fsom, level="metaclusters"):
     return pd.DataFrame(counts, index=["counts"]).T
 
 
-def get_percentages(fsom, level="metaclusters"):
+def get_percentages(fsom, level: str = "metaclusters") -> pd.DataFrame:
     """Get percentages of number of cells in clusters or metaclusters.
 
     :param fsom: A FlowSOM object
@@ -149,7 +149,7 @@ def get_percentages(fsom, level="metaclusters"):
     return percentages
 
 
-def get_cluster_percentages_positive(fsom, cutoffs, cols_used=False, pretty_colnames=False):
+def get_cluster_percentages_positive(fsom, cutoffs: dict, cols_used: bool = False, pretty_colnames: bool = False) -> pd.DataFrame:
     """Get percentage-positive values for all clusters.
 
     :param fsom: A FlowSOM object
@@ -190,7 +190,7 @@ def get_cluster_percentages_positive(fsom, cutoffs, cols_used=False, pretty_coln
     return pd.DataFrame(perc_pos, columns=column_names)
 
 
-def get_metacluster_percentages_positive(fsom, cutoffs, cols_used=False, pretty_colnames=False):
+def get_metacluster_percentages_positive(fsom, cutoffs: dict, cols_used: bool = False, pretty_colnames: bool = False) -> pd.DataFrame:
     """Get percentage-positive values for all metaclusters.
 
     :param fsom: A FlowSOM object
@@ -233,13 +233,13 @@ def get_metacluster_percentages_positive(fsom, cutoffs, cols_used=False, pretty_
 
 def get_features(
     fsom,
-    files,
+    files: list,
     level=np.array(["clusters", "metaclusters"]),
     type=np.array(["counts"]),
-    MFI=None,
-    positive_cutoffs=None,
-    filenames=None,
-):
+    MFI: list | None = None,
+    positive_cutoffs: dict | None = None,
+    filenames: list | None = None,
+) -> dict[str, pd.DataFrame]:
     """Map FCS files on an existing FlowSOM object.
 
     :param fsom: A FlowSOM object
